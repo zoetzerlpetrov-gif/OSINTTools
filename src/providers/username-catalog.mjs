@@ -40,6 +40,7 @@ export const USERNAME_PROVIDERS = [
   ["Glitch", "development", "https://glitch.com/@{username}"],
   ["LeetCode", "development", "https://leetcode.com/u/{username}/"],
   ["Codewars", "development", "https://www.codewars.com/users/{username}"],
+  ["Scratch", "development", "https://scratch.mit.edu/users/{username}/"],
   ["HackerRank", "development", "https://www.hackerrank.com/{username}"],
   ["Exercism", "development", "https://exercism.org/profiles/{username}"],
   ["TryHackMe", "security", "https://tryhackme.com/p/{username}"],
@@ -77,6 +78,7 @@ export const USERNAME_PROVIDERS = [
   ["Lichess", "gaming", "https://lichess.org/@/{username}"],
   ["Speedrun.com", "gaming", "https://www.speedrun.com/users/{username}"],
   ["Game Jolt", "gaming", "https://gamejolt.com/@{username}"],
+  ["Roblox", "gaming", "https://www.roblox.com/search/users?keyword={username}"],
   ["eBay", "commerce", "https://www.ebay.com/usr/{username}"],
   ["Etsy shop", "commerce", "https://www.etsy.com/shop/{username}"],
   ["Cash App", "payments", "https://cash.app/${username}"],
@@ -93,13 +95,15 @@ export const USERNAME_PROVIDERS = [
 export const USERNAME_CATEGORIES = Object.freeze([...new Set(USERNAME_PROVIDERS.map(provider => provider.category))].sort());
 
 export function buildUsernameCandidates(username) {
-  const encoded = encodeURIComponent(username);
-  return USERNAME_PROVIDERS.map(provider => ({
-    provider: provider.name,
-    category: provider.category,
-    url: provider.template.replace("{username}", encoded),
-    confidence: "candidate",
-    verification: "not-checked",
-    note: "Candidate profile URL only. Existence and ownership have not been verified."
-  }));
+  return USERNAME_PROVIDERS.map(provider => {
+    const providerUsername = provider.name === "Bluesky" && !username.includes(".") ? `${username}.bsky.social` : username;
+    return {
+      provider: provider.name,
+      category: provider.category,
+      url: provider.template.replace("{username}", encodeURIComponent(providerUsername)),
+      confidence: "candidate",
+      verification: "not-checked",
+      note: "URL candidata del perfil. Todavía no se verificaron su existencia ni la identidad de quien la controla."
+    };
+  });
 }
