@@ -30,7 +30,7 @@
       <div class="panel search-panel">
         <div class="panel-heading">
           <div><span class="step">01</span><h2>Nueva consulta</h2></div>
-          <span class="badge">MVP 0.1</span>
+          <span class="badge">MVP 0.3</span>
         </div>
         <form id="search-form" class="search-form">
           <label>
@@ -68,6 +68,10 @@
 
     <section class="panel results-panel" aria-live="polite">
       <div class="panel-heading"><div><span class="step">03</span><h2>Resultados</h2></div><span id="result-meta" class="muted">Sin consulta activa</span></div>
+      <div id="result-tools" class="result-tools" hidden>
+        <label>Categoría<select id="category-filter"><option value="all">Todas las categorías</option></select></label>
+        <span id="visible-count" class="muted"></span>
+      </div>
       <div id="results" class="empty-state">
         <div class="radar"></div>
         <p>Inicia una consulta para construir la cadena de evidencia.</p>
