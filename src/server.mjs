@@ -6,6 +6,7 @@ import { inspectDomain, inspectIp } from "./connectors/dns.mjs";
 import { fetchEmailBreaches, fetchPasswordRange } from "./connectors/hibp.mjs";
 import { fetchRdap } from "./connectors/rdap.mjs";
 import { fetchShodanHost } from "./connectors/shodan.mjs";
+import { buildUsernameCandidates, USERNAME_CATEGORIES, USERNAME_PROVIDERS } from "./providers/username-catalog.mjs";
 import { isPublicIp, normalizeSearchType, validateSha1Prefix, validateTerm } from "./validation.mjs";
 
 const port = Number(process.env.PORT || 3000);
@@ -61,17 +62,6 @@ function allowRequest(request) {
   return current.count <= 30;
 }
 
-function usernameCandidates(username) {
-  const encoded = encodeURIComponent(username);
-  return [
-    ["GitHub", `https://github.com/${encoded}`],
-    ["Reddit", `https://www.reddit.com/user/${encoded}`],
-    ["GitLab", `https://gitlab.com/${encoded}`],
-    ["Keybase", `https://keybase.io/${encoded}`],
-    ["Medium", `https://medium.com/@${encoded}`]
-  ].map(([provider, url]) => ({ provider, url, confidence: "unverified", note: "Candidate URL only; existence and ownership have not been confirmed." }));
-}
-
 async function runSearch(type, value) {
   if (type === "domain") {
     const results = await Promise.allSettled([inspectDomain(value), fetchRdap("domain", value)]);
@@ -97,7 +87,12 @@ async function runSearch(type, value) {
     }
     return { type, value, findings };
   }
-  if (type === "username") return { type, value, findings: usernameCandidates(value) };
+  if (type === "username") return {
+    type,
+    value,
+    findings: buildUsernameCandidates(value),
+    catalog: { total: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES, mode: "candidate-links" }
+  };
   if (type === "email") {
     const domain = value.split("@")[1];
     return {
@@ -144,7 +139,7 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
 
     if (request.method === "GET" && url.pathname === "/api/health") {
-      return sendJson(response, 200, { status: "ok", version: "0.2.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY) } });
+      return sendJson(response, 200, { status: "ok", version: "0.3.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY) }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length } });
     }
 
     if (request.method === "POST" && url.pathname === "/api/search") {
