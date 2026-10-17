@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OSINTTools: espacio de investigación y autoauditoría digital con evidencia.">
+  <title>OSINTTools · Investigation Workspace</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="OSINTTools inicio"><span class="brand-mark">O</span><span>OSINTTools</span></a>
+    <div class="status"><span class="status-dot"></span><span id="system-status">Comprobando conectores</span></div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">INVESTIGACIÓN AUTORIZADA · EVIDENCIA TRAZABLE</p>
+        <h1>Investiga señales.<br><span>No adivines identidades.</span></h1>
+        <p class="lede">Consulta indicadores, conserva la procedencia y separa hechos, coincidencias e inferencias.</p>
+      </div>
+      <div class="policy-card">
+        <strong>Límite operativo</strong>
+        <p>Usa identificadores propios, activos bajo tu control o investigaciones con autorización documentada.</p>
+      </div>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="panel search-panel">
+        <div class="panel-heading">
+          <div><span class="step">01</span><h2>Nueva consulta</h2></div>
+          <span class="badge">MVP 0.1</span>
+        </div>
+        <form id="search-form" class="search-form">
+          <label>
+            Tipo de indicador
+            <select id="search-type" name="type">
+              <option value="email">Correo electrónico</option>
+              <option value="username">Nombre de usuario</option>
+              <option value="domain">Dominio</option>
+              <option value="ip">Dirección IP</option>
+              <option value="name">Nombre de persona · revisión manual</option>
+              <option value="phone">Teléfono · revisión manual</option>
+            </select>
+          </label>
+          <label class="grow">
+            Valor
+            <input id="search-value" name="value" autocomplete="off" placeholder="analista@example.com" required maxlength="320">
+          </label>
+          <button type="submit" class="primary">Investigar</button>
+        </form>
+        <p class="microcopy">Cada resultado conserva su fuente, estado de verificación y momento de observación.</p>
+      </div>
+
+      <aside class="panel case-panel">
+        <div class="panel-heading"><div><span class="step">02</span><h2>Expediente local</h2></div></div>
+        <label>Nombre del expediente<input id="case-name" maxlength="80" value="Autoauditoría inicial"></label>
+        <div class="case-stats"><span><b id="finding-count">0</b> hallazgos</span><span><b id="source-count">0</b> fuentes</span></div>
+        <div class="button-row">
+          <button id="save-result" disabled>Guardar resultado</button>
+          <button id="export-case">Exportar JSON</button>
+          <button id="clear-case" class="danger">Vaciar</button>
+        </div>
+        <p class="microcopy">El expediente permanece en este navegador hasta que lo exportes o elimines.</p>
+      </aside>
+    </section>
+
+    <section class="panel results-panel" aria-live="polite">
+      <div class="panel-heading"><div><span class="step">03</span><h2>Resultados</h2></div><span id="result-meta" class="muted">Sin consulta activa</span></div>
+      <div id="results" class="empty-state">
+        <div class="radar"></div>
+        <p>Inicia una consulta para construir la cadena de evidencia.</p>
+      </div>
+    </section>
+
+    <section class="panel password-panel">
+      <div class="panel-heading"><div><span class="step">04</span><h2>¿Esta contraseña apareció en filtraciones?</h2></div><span class="badge safe">k-anonymity</span></div>
+      <p>La contraseña se convierte en un hash dentro de tu navegador. El servidor recibe únicamente los primeros cinco caracteres del hash.</p>
+      <form id="password-form" class="password-form">
+        <label class="grow">Contraseña para autoauditoría<input id="password-value" type="password" autocomplete="new-password" minlength="1" required></label>
+        <button type="submit">Comprobar exposición</button>
+      </form>
+      <div id="password-result" class="password-result muted">No se ha enviado ninguna consulta.</div>
+    </section>
+  </main>
+
+  <footer><span>OSINTTools</span><span>Privacidad por diseño · Sin seguimiento · Sin almacenamiento central en este MVP</span></footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
