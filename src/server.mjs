@@ -1,7 +1,7 @@
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspectDomain, inspectIp } from "./connectors/dns.mjs";
 import { fetchEmailBreaches, fetchPasswordRange } from "./connectors/hibp.mjs";
 import { fetchRdap } from "./connectors/rdap.mjs";
@@ -150,17 +150,19 @@ async function serveStatic(pathname, response) {
   }
 }
 
-const server = http.createServer(async (request, response) => {
+export async function handleRequest(request, response) {
   const requestId = crypto.randomUUID();
   try {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
-    if (url.pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
+    const rewrittenPath = url.pathname === "/api/index" ? url.searchParams.get("__path") : null;
+    const pathname = rewrittenPath ? `/api/${rewrittenPath.replace(/^\/+/, "")}` : url.pathname;
+    if (pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
 
-    if (request.method === "GET" && url.pathname === "/api/health") {
+    if (request.method === "GET" && pathname === "/api/health") {
       return sendJson(response, 200, { status: "ok", version: "0.4.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length } });
     }
 
-    if (request.method === "POST" && url.pathname === "/api/search") {
+    if (request.method === "POST" && pathname === "/api/search") {
       const body = await readJson(request);
       const type = normalizeSearchType(body.type);
       const value = validateTerm(type, body.value);
@@ -168,7 +170,7 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, { requestId, observedAt: new Date().toISOString(), ...result });
     }
 
-    if (request.method === "POST" && url.pathname === "/api/password-range") {
+    if (request.method === "POST" && pathname === "/api/password-range") {
       const body = await readJson(request);
       const prefix = validateSha1Prefix(body.prefix);
       const range = await fetchPasswordRange(prefix);
@@ -176,33 +178,36 @@ const server = http.createServer(async (request, response) => {
       return response.end(range);
     }
 
-    if (request.method === "POST" && url.pathname === "/api/email-exposure") {
+    if (request.method === "POST" && pathname === "/api/email-exposure") {
       const body = await readJson(request);
       const email = validateTerm("email", body.email);
       const breaches = await fetchEmailBreaches(email);
       return sendJson(response, 200, { requestId, count: breaches.length, breaches });
     }
 
-    if (request.method === "POST" && url.pathname === "/api/username/verify") {
+    if (request.method === "POST" && pathname === "/api/username/verify") {
       const input = validateVerificationRequest(await readJson(request));
       return sendJson(response, 202, createVerificationJob(input));
     }
 
-    if (request.method === "GET" && url.pathname.startsWith("/api/jobs/")) {
-      const id = url.pathname.slice("/api/jobs/".length);
+    if (request.method === "GET" && pathname.startsWith("/api/jobs/")) {
+      const id = pathname.slice("/api/jobs/".length);
       if (!/^[0-9a-f-]{36}$/i.test(id)) return sendJson(response, 404, { error: "Job not found", requestId });
       const job = getVerificationJob(id);
       return job ? sendJson(response, 200, job) : sendJson(response, 404, { error: "Job not found", requestId });
     }
 
-    if (request.method === "GET") return serveStatic(url.pathname, response);
+    if (request.method === "GET") return serveStatic(pathname, response);
     return sendJson(response, 405, { error: "Method not allowed", requestId });
   } catch (error) {
     const status = error.code === "CONNECTOR_NOT_CONFIGURED" ? 503 : 400;
     sendJson(response, status, { error: error.message || "Unexpected error", requestId });
   }
-});
+}
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`OSINTTools listening on http://127.0.0.1:${port}`);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const server = http.createServer(handleRequest);
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`OSINTTools listening on http://127.0.0.1:${port}`);
+  });
+}
