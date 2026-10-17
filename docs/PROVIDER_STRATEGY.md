@@ -6,9 +6,11 @@ OSINTTools includes an internally maintained catalog of public profile URL patte
 
 This tier does not contact every listed service. It is fast, avoids burst traffic, and prevents HTTP status codes or generic profile pages from being presented as confirmed identities.
 
-## Next tier: verified worker
+## Implemented prototype: verified worker
 
-Verified searches should run outside the web request cycle in an isolated worker:
+Version 0.4 adds an optional local Maigret worker outside the web request cycle. It is disabled by default, accepts no more than 50 sites, uses five concurrent connections, disables recursive discovery, and runs through a single in-memory queue.
+
+Before enabling it in a multi-user deployment, the following controls remain required:
 
 1. Require an authenticated case, stated purpose, and authorization record.
 2. Select categories and a maximum provider count rather than scanning every source automatically.
@@ -20,7 +22,7 @@ Verified searches should run outside the web request cycle in an isolated worker
 
 ## Upstream projects
 
-- Maigret is the preferred future worker because its repository is MIT-licensed and maintains a large provider definition set.
+- Maigret is the current optional worker because its repository is MIT-licensed and maintains a large provider definition set.
 - Sherlock is a secondary compatibility source under the MIT license.
 - WhatsMyName is useful for validation research, but its dataset uses CC BY-SA 4.0. Bundling or adapting it requires attribution and share-alike review against the intended commercial licensing model.
 
