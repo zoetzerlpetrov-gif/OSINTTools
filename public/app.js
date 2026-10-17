@@ -9,6 +9,9 @@ const elements = {
   searchValue: document.querySelector("#search-value"),
   results: document.querySelector("#results"),
   resultMeta: document.querySelector("#result-meta"),
+  resultTools: document.querySelector("#result-tools"),
+  categoryFilter: document.querySelector("#category-filter"),
+  visibleCount: document.querySelector("#visible-count"),
   saveResult: document.querySelector("#save-result"),
   exportCase: document.querySelector("#export-case"),
   clearCase: document.querySelector("#clear-case"),
@@ -38,10 +41,11 @@ function renderFinding(finding) {
   const provider = escapeHtml(finding.provider || "Fuente");
   const confidence = escapeHtml(finding.confidence || "observado");
   const note = finding.note ? `<p>${escapeHtml(finding.note)}</p>` : "";
-  const link = finding.url ? `<p><a href="${escapeHtml(finding.url)}" target="_blank" rel="noopener noreferrer">Abrir fuente candidata</a></p>` : "";
+  const link = finding.url ? `<p><a href="${escapeHtml(finding.url)}" target="_blank" rel="noopener noreferrer">Abrir perfil o fuente candidata</a></p>` : "";
   const detailValue = finding.details || finding.records || finding.hostnames || finding.value;
   const details = detailValue ? `<pre>${escapeHtml(JSON.stringify(detailValue, null, 2))}</pre>` : "";
-  return `<article class="finding"><div class="finding-head"><strong>${provider}</strong><span class="confidence">${confidence}</span></div>${note}${link}${details}</article>`;
+  const category = escapeHtml(finding.category || "other");
+  return `<article class="finding" data-category="${category}"><div class="finding-head"><strong>${provider}</strong><span class="confidence">${confidence}</span></div>${note}${link}${details}</article>`;
 }
 
 function renderResult(result) {
@@ -50,13 +54,37 @@ function renderResult(result) {
   elements.resultMeta.textContent = `${result.type} · ${new Date(result.observedAt).toLocaleString()}`;
   elements.results.className = "finding-grid";
   elements.results.innerHTML = result.findings.map(renderFinding).join("") || '<p class="muted">No se encontraron datos.</p>';
+  configureResultTools(result);
+}
+
+function configureResultTools(result) {
+  const categories = result.catalog?.categories || [];
+  elements.resultTools.hidden = categories.length === 0;
+  elements.categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>' + categories
+    .map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
+    .join("");
+  elements.categoryFilter.value = "all";
+  elements.visibleCount.textContent = result.catalog ? `${result.catalog.total} proveedores candidatos · sin verificar` : "";
 }
 
 function renderError(message) {
+  elements.resultTools.hidden = true;
   elements.results.className = "empty-state";
   elements.results.innerHTML = `<p>${escapeHtml(message)}</p>`;
   elements.resultMeta.textContent = "Consulta fallida";
 }
+
+elements.categoryFilter.addEventListener("change", () => {
+  const selected = elements.categoryFilter.value;
+  const cards = [...elements.results.querySelectorAll(".finding")];
+  let visible = 0;
+  for (const card of cards) {
+    const show = selected === "all" || card.dataset.category === selected;
+    card.hidden = !show;
+    if (show) visible += 1;
+  }
+  elements.visibleCount.textContent = `${visible} de ${cards.length} proveedores candidatos · sin verificar`;
+});
 
 function updateCaseStats() {
   elements.findingCount.textContent = String(state.findings.length);
