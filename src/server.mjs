@@ -4,7 +4,9 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspectDomain, inspectIp } from "./connectors/dns.mjs";
 import { fetchEmailBreaches, fetchPasswordRange } from "./connectors/hibp.mjs";
-import { normalizeSearchType, validateSha1Prefix, validateTerm } from "./validation.mjs";
+import { fetchRdap } from "./connectors/rdap.mjs";
+import { fetchShodanHost } from "./connectors/shodan.mjs";
+import { isPublicIp, normalizeSearchType, validateSha1Prefix, validateTerm } from "./validation.mjs";
 
 const port = Number(process.env.PORT || 3000);
 const root = fileURLToPath(new URL("../public", import.meta.url));
@@ -71,8 +73,30 @@ function usernameCandidates(username) {
 }
 
 async function runSearch(type, value) {
-  if (type === "domain") return { type, value, findings: [await inspectDomain(value)] };
-  if (type === "ip") return { type, value, findings: [await inspectIp(value)] };
+  if (type === "domain") {
+    const results = await Promise.allSettled([inspectDomain(value), fetchRdap("domain", value)]);
+    return { type, value, findings: settledFindings(results) };
+  }
+  if (type === "ip") {
+    if (!isPublicIp(value)) {
+      return {
+        type,
+        value,
+        findings: [
+          await inspectIp(value),
+          { provider: "Safety gate", confidence: "blocked", note: "Private, local, multicast, and reserved IP addresses are not sent to RDAP or Shodan." }
+        ]
+      };
+    }
+    const lookups = [inspectIp(value), fetchRdap("ip", value)];
+    if (process.env.SHODAN_API_KEY) lookups.push(fetchShodanHost(value));
+    const results = await Promise.allSettled(lookups);
+    const findings = settledFindings(results);
+    if (!process.env.SHODAN_API_KEY) {
+      findings.push({ provider: "Shodan", confidence: "not-configured", note: "Configure SHODAN_API_KEY to add passive host observations. No active scan is performed." });
+    }
+    return { type, value, findings };
+  }
   if (type === "username") return { type, value, findings: usernameCandidates(value) };
   if (type === "email") {
     const domain = value.split("@")[1];
@@ -91,6 +115,12 @@ async function runSearch(type, value) {
     value,
     findings: [{ provider: "Safety gate", confidence: "manual-review", note: "Automated person or phone enumeration is disabled in the MVP. Record a lawful purpose and authorization before enabling a connector." }]
   };
+}
+
+function settledFindings(results) {
+  return results.map(result => result.status === "fulfilled"
+    ? result.value
+    : { provider: "Connector", confidence: "unavailable", note: result.reason?.message || "Connector unavailable" });
 }
 
 async function serveStatic(pathname, response) {
@@ -114,7 +144,7 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
 
     if (request.method === "GET" && url.pathname === "/api/health") {
-      return sendJson(response, 200, { status: "ok", version: "0.1.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true } });
+      return sendJson(response, 200, { status: "ok", version: "0.2.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY) } });
     }
 
     if (request.method === "POST" && url.pathname === "/api/search") {
