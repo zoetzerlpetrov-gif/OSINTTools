@@ -30,7 +30,7 @@
       <div class="panel search-panel">
         <div class="panel-heading">
           <div><span class="step">01</span><h2>Nueva consulta</h2></div>
-          <span class="badge">MVP 0.4</span>
+          <span class="badge">MVP 0.5</span>
         </div>
         <form id="search-form" class="search-form">
           <label>
@@ -70,12 +70,21 @@
       <div class="panel-heading"><div><span class="step">03</span><h2>Resultados</h2></div><span id="result-meta" class="muted">Sin consulta activa</span></div>
       <div id="result-tools" class="result-tools" hidden>
         <label>Categoría<select id="category-filter"><option value="all">Todas las categorías</option></select></label>
+        <label>Estado<select id="status-filter">
+          <option value="all">Todos los estados</option>
+          <option value="found">Encontrado</option>
+          <option value="not-found">No encontrado</option>
+          <option value="blocked">Bloqueado</option>
+          <option value="inconclusive">Inconcluso</option>
+          <option value="error">Error</option>
+          <option value="not-checked">Pendiente</option>
+        </select></label>
         <span id="visible-count" class="muted"></span>
       </div>
       <form id="verification-form" class="verification-panel" hidden>
         <div>
-          <strong>Verificación controlada con Maigret</strong>
-          <p class="microcopy">Consulta como máximo 50 sitios. Los resultados indican que el proveedor respondió como cuenta existente; no prueban quién controla la cuenta.</p>
+          <strong>Verificación rápida de existencia</strong>
+          <p class="microcopy">Consulta APIs públicas compatibles y distingue encontrado, no encontrado, bloqueado e inconcluso. Un perfil encontrado no prueba quién lo controla.</p>
         </div>
         <label>Propósito
           <select id="verification-purpose" required>
@@ -84,9 +93,9 @@
             <option value="authorized-investigation">Investigación autorizada</option>
           </select>
         </label>
-        <label>Máximo de sitios<input id="verification-limit" type="number" min="1" max="50" value="25" required></label>
+        <label>Máximo de fuentes<input id="verification-limit" type="number" min="1" max="10" value="10" required></label>
         <label class="authorization-check"><input id="verification-authorization" type="checkbox" required> Confirmo que tengo autorización y un propósito legítimo.</label>
-        <button id="verification-submit" type="submit">Verificar perfiles</button>
+        <button id="verification-submit" type="submit">Verificar existencia</button>
         <span id="verification-status" class="microcopy">Comprobando disponibilidad del trabajador…</span>
       </form>
       <div id="results" class="empty-state">
