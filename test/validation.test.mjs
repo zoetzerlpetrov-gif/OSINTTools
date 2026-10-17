@@ -33,5 +33,9 @@ test("validates a k-anonymity SHA-1 prefix", () => {
 test("detects public and private IP addresses", () => {
   assert.equal(isPublicIp("8.8.8.8"), true);
   assert.equal(isPublicIp("192.168.1.20"), false);
+  assert.equal(isPublicIp("100.64.1.20"), false);
+  assert.equal(isPublicIp("198.51.100.20"), false);
   assert.equal(isPublicIp("::1"), false);
+  assert.equal(isPublicIp("2001:db8::1"), false);
+  assert.equal(isPublicIp("2606:4700:4700::1111"), true);
 });

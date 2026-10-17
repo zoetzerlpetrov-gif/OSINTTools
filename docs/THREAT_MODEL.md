@@ -32,6 +32,8 @@
 - The server does not persist cases or search values.
 - API request bodies are size-limited and rate-limited.
 - Private and reserved IP ranges are not sent for reverse lookup.
+- RDAP contact cards and raw Shodan service banners are discarded during normalization.
+- Shodan is optional, restricted to public IPs, and uses passive provider observations rather than target scanning.
 - Strict browser security headers and no third-party scripts.
 
 ## Controls required before multi-user deployment

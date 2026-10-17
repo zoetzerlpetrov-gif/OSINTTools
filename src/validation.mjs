@@ -53,16 +53,26 @@ export function validateSha1Prefix(value) {
 
 export function isPublicIp(value) {
   if (net.isIP(value) === 4) {
-    const parts = value.split(".").map(Number);
-    if (parts[0] === 10 || parts[0] === 127 || parts[0] === 0) return false;
-    if (parts[0] === 169 && parts[1] === 254) return false;
-    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return false;
-    if (parts[0] === 192 && parts[1] === 168) return false;
-    if (parts[0] >= 224) return false;
+    const numeric = value.split(".").map(Number).reduce((total, part) => ((total << 8) | part) >>> 0, 0);
+    const blockedCidrs = [
+      ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+      ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+      ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
+      ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4]
+    ];
+    if (blockedCidrs.some(([network, prefix]) => {
+      const base = network.split(".").map(Number).reduce((total, part) => ((total << 8) | part) >>> 0, 0);
+      const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+      return (numeric & mask) === (base & mask);
+    })) return false;
   }
   if (net.isIP(value) === 6) {
     const normalized = value.toLowerCase();
-    if (normalized === "::1" || normalized === "::" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb")) return false;
+    if (normalized === "::1" || normalized === "::") return false;
+    if (normalized.startsWith("::ffff:") || normalized.startsWith("64:ff9b:1:") || normalized.startsWith("100:")) return false;
+    if (normalized.startsWith("fc") || normalized.startsWith("fd")) return false;
+    if (["fe8", "fe9", "fea", "feb"].some(prefix => normalized.startsWith(prefix))) return false;
+    if (normalized.startsWith("ff") || normalized.startsWith("2001:db8:") || normalized.startsWith("3fff:")) return false;
   }
   return true;
 }
