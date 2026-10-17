@@ -1,6 +1,7 @@
 const state = {
   currentResult: null,
-  findings: JSON.parse(localStorage.getItem("osinttools.case") || "[]")
+  findings: JSON.parse(localStorage.getItem("osinttools.case") || "[]"),
+  usernameVerificationEnabled: false
 };
 
 const elements = {
@@ -12,6 +13,12 @@ const elements = {
   resultTools: document.querySelector("#result-tools"),
   categoryFilter: document.querySelector("#category-filter"),
   visibleCount: document.querySelector("#visible-count"),
+  verificationForm: document.querySelector("#verification-form"),
+  verificationPurpose: document.querySelector("#verification-purpose"),
+  verificationLimit: document.querySelector("#verification-limit"),
+  verificationAuthorization: document.querySelector("#verification-authorization"),
+  verificationSubmit: document.querySelector("#verification-submit"),
+  verificationStatus: document.querySelector("#verification-status"),
   saveResult: document.querySelector("#save-result"),
   exportCase: document.querySelector("#export-case"),
   clearCase: document.querySelector("#clear-case"),
@@ -55,6 +62,7 @@ function renderResult(result) {
   elements.results.className = "finding-grid";
   elements.results.innerHTML = result.findings.map(renderFinding).join("") || '<p class="muted">No se encontraron datos.</p>';
   configureResultTools(result);
+  configureVerification(result);
 }
 
 function configureResultTools(result) {
@@ -65,6 +73,16 @@ function configureResultTools(result) {
     .join("");
   elements.categoryFilter.value = "all";
   elements.visibleCount.textContent = result.catalog ? `${result.catalog.total} proveedores candidatos · sin verificar` : "";
+}
+
+function configureVerification(result) {
+  const isUsername = result.type === "username";
+  elements.verificationForm.hidden = !isUsername;
+  if (!isUsername) return;
+  elements.verificationSubmit.disabled = !state.usernameVerificationEnabled;
+  elements.verificationStatus.textContent = state.usernameVerificationEnabled
+    ? "Trabajador disponible. La consulta se ejecutará en una cola local."
+    : "Trabajador desactivado. Configura Maigret y ENABLE_USERNAME_VERIFICATION=true.";
 }
 
 function renderError(message) {
@@ -85,6 +103,54 @@ elements.categoryFilter.addEventListener("change", () => {
   }
   elements.visibleCount.textContent = `${visible} de ${cards.length} proveedores candidatos · sin verificar`;
 });
+
+elements.verificationForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!state.currentResult || state.currentResult.type !== "username") return;
+  elements.verificationSubmit.disabled = true;
+  elements.verificationStatus.textContent = "Trabajo en cola…";
+  try {
+    const job = await postJson("/api/username/verify", {
+      username: state.currentResult.value,
+      purpose: elements.verificationPurpose.value,
+      maxSites: Number(elements.verificationLimit.value),
+      authorizationAcknowledged: elements.verificationAuthorization.checked,
+      tags: []
+    });
+    await pollVerificationJob(job.id);
+  } catch (error) {
+    elements.verificationStatus.textContent = error.message;
+  } finally {
+    elements.verificationSubmit.disabled = !state.usernameVerificationEnabled;
+  }
+});
+
+async function pollVerificationJob(jobId) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const job = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`).then(async response => {
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      return payload;
+    });
+    elements.verificationStatus.textContent = job.status === "queued" ? "En cola…" : job.status === "running" ? "Maigret está verificando perfiles…" : job.status;
+    if (job.status === "failed") throw new Error(job.error || "El trabajo de verificación falló");
+    if (job.status === "completed") {
+      const verified = job.results || [];
+      const candidates = state.currentResult.findings.filter(finding => finding.verification !== "claimed");
+      const categories = [...new Set([...(state.currentResult.catalog?.categories || []), "verified-username"])].sort();
+      renderResult({
+        ...state.currentResult,
+        findings: [...verified, ...candidates],
+        catalog: { ...(state.currentResult.catalog || {}), total: verified.length + candidates.length, categories, mode: "mixed" },
+        verificationJob: { id: job.id, purpose: job.purpose, completedAt: job.updatedAt }
+      });
+      elements.verificationStatus.textContent = `${verified.length} perfiles reportados como existentes por Maigret. Requieren revisión humana.`;
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+  throw new Error("La verificación continúa ejecutándose; consulta el trabajo más tarde");
+}
 
 function updateCaseStats() {
   elements.findingCount.textContent = String(state.findings.length);
@@ -185,6 +251,7 @@ async function initialize() {
   updateCaseStats();
   try {
     const health = await fetch("/api/health").then(response => response.json());
+    state.usernameVerificationEnabled = Boolean(health.connectors.usernameVerification);
     elements.systemStatus.textContent = `DNS, RDAP y contraseñas activos · Shodan ${health.connectors.shodan ? "activo" : "sin configurar"}`;
     elements.systemStatus.parentElement.classList.add("ready");
   } catch {

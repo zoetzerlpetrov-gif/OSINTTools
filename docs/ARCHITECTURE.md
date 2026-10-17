@@ -15,6 +15,7 @@ Browser UI
   ├─ domain ──> Node API ──> DNS + RDAP
   ├─ public IP ──> Node API ──> reverse DNS + RDAP + optional Shodan
   ├─ username ──> provider catalog ──> categorized candidate URLs
+  │              └─ authorized request ──> in-memory queue ──> Maigret worker
   ├─ password ──> local SHA-1 ──> five-character prefix ──> HIBP range API
   └─ case workspace ──> browser localStorage ──> user-controlled JSON export
 ```
@@ -42,6 +43,8 @@ Browser UI
 - The built-in catalog generates candidate links without contacting all providers.
 - Every candidate is labelled `not-checked`; a URL pattern is not evidence of account existence.
 - Verified enumeration will run in a separate bounded worker after case authorization and audit logging exist.
+- The local worker prototype is feature-flagged, processes one job at a time, and caps each job at 50 providers.
+- Recursive identifier discovery is disabled so a username job cannot silently expand into searches for other identifiers.
 - Provider definitions remain versioned, testable, and separable from investigation records.
 
 ## Next technical increment

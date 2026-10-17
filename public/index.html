@@ -30,7 +30,7 @@
       <div class="panel search-panel">
         <div class="panel-heading">
           <div><span class="step">01</span><h2>Nueva consulta</h2></div>
-          <span class="badge">MVP 0.3</span>
+          <span class="badge">MVP 0.4</span>
         </div>
         <form id="search-form" class="search-form">
           <label>
@@ -72,6 +72,23 @@
         <label>Categoría<select id="category-filter"><option value="all">Todas las categorías</option></select></label>
         <span id="visible-count" class="muted"></span>
       </div>
+      <form id="verification-form" class="verification-panel" hidden>
+        <div>
+          <strong>Verificación controlada con Maigret</strong>
+          <p class="microcopy">Consulta como máximo 50 sitios. Los resultados indican que el proveedor respondió como cuenta existente; no prueban quién controla la cuenta.</p>
+        </div>
+        <label>Propósito
+          <select id="verification-purpose" required>
+            <option value="self-audit">Autoauditoría</option>
+            <option value="owned-brand">Marca o activo propio</option>
+            <option value="authorized-investigation">Investigación autorizada</option>
+          </select>
+        </label>
+        <label>Máximo de sitios<input id="verification-limit" type="number" min="1" max="50" value="25" required></label>
+        <label class="authorization-check"><input id="verification-authorization" type="checkbox" required> Confirmo que tengo autorización y un propósito legítimo.</label>
+        <button id="verification-submit" type="submit">Verificar perfiles</button>
+        <span id="verification-status" class="microcopy">Comprobando disponibilidad del trabajador…</span>
+      </form>
       <div id="results" class="empty-state">
         <div class="radar"></div>
         <p>Inicia una consulta para construir la cadena de evidencia.</p>
