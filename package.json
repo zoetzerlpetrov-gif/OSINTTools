@@ -1,6 +1,6 @@
 {
   "name": "osinttools",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Safe, evidence-oriented OSINT workspace for authorized investigations and personal exposure audits.",
   "type": "module",

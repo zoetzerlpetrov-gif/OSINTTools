@@ -8,7 +8,7 @@ OSINTTools is a web workspace for authorized investigations and personal digital
 - DNS and reverse-DNS lookups using Node's resolver.
 - RDAP registration lookups for domains and public IP addresses.
 - Optional Shodan host intelligence using existing observations only; no active scanning.
-- Candidate username profile links clearly marked as unverified.
+- Categorized username catalog with 89 public profile patterns, clearly marked as unverified candidates.
 - Password exposure checks through Have I Been Pwned's range API.
 - Browser-side SHA-1 hashing: the password and complete hash never reach this server.
 - Optional HIBP email-breach lookup when `HIBP_API_KEY` is configured.
@@ -51,6 +51,10 @@ npm run check
 | `/api/email-exposure` | POST | Query HIBP for an email when configured |
 
 Domain searches combine DNS with RDAP. Public-IP searches combine reverse DNS and RDAP, and add Shodan when its key is configured. A failed provider is reported independently instead of discarding findings from other providers.
+
+Username searches generate candidate profile URLs across social, development, security, media, creative, professional, gaming, commerce, legacy, and regional services. They do not send 89 automated requests and do not claim that an account exists. The interface can filter the candidates by category.
+
+See [Provider strategy](docs/PROVIDER_STRATEGY.md) for the planned verified-search worker and third-party dataset boundaries.
 
 ## Safety boundary
 
