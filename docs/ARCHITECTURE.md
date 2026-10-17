@@ -14,6 +14,7 @@
 Browser UI
   ├─ domain ──> Node API ──> DNS + RDAP
   ├─ public IP ──> Node API ──> reverse DNS + RDAP + optional Shodan
+  ├─ username ──> provider catalog ──> categorized candidate URLs
   ├─ password ──> local SHA-1 ──> five-character prefix ──> HIBP range API
   └─ case workspace ──> browser localStorage ──> user-controlled JSON export
 ```
@@ -35,6 +36,13 @@ Browser UI
 - Raw service banners are not returned to the browser or stored in case exports.
 - OSINTTools never connects to target ports and does not request historical Shodan banners.
 - Provider failures remain isolated through `Promise.allSettled`.
+
+## Username discovery boundary
+
+- The built-in catalog generates candidate links without contacting all providers.
+- Every candidate is labelled `not-checked`; a URL pattern is not evidence of account existence.
+- Verified enumeration will run in a separate bounded worker after case authorization and audit logging exist.
+- Provider definitions remain versioned, testable, and separable from investigation records.
 
 ## Next technical increment
 
