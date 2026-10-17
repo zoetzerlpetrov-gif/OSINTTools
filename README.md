@@ -6,6 +6,8 @@ OSINTTools is a web workspace for authorized investigations and personal digital
 
 - Unified search for email, username, domain, and IP indicators.
 - DNS and reverse-DNS lookups using Node's resolver.
+- RDAP registration lookups for domains and public IP addresses.
+- Optional Shodan host intelligence using existing observations only; no active scanning.
 - Candidate username profile links clearly marked as unverified.
 - Password exposure checks through Have I Been Pwned's range API.
 - Browser-side SHA-1 hashing: the password and complete hash never reach this server.
@@ -28,7 +30,9 @@ npm start
 
 Open <http://localhost:3000>.
 
-The application runs without an HIBP API key. Password range checks remain available because that API does not require a key. Email-breach lookup is shown as unavailable until `HIBP_API_KEY` is present.
+The application runs without API keys. Password range checks and RDAP remain available. Email-breach lookup requires `HIBP_API_KEY`; passive Shodan host intelligence requires `SHODAN_API_KEY`.
+
+RDAP contact cards and raw Shodan banners are deliberately excluded from normalized results. This reduces collection of personal data and avoids retaining unnecessary service content.
 
 ## Test
 
@@ -45,6 +49,8 @@ npm run check
 | `/api/search` | POST | Validate and investigate an email, username, domain, or IP |
 | `/api/password-range` | POST | Proxy a five-character SHA-1 prefix to HIBP |
 | `/api/email-exposure` | POST | Query HIBP for an email when configured |
+
+Domain searches combine DNS with RDAP. Public-IP searches combine reverse DNS and RDAP, and add Shodan when its key is configured. A failed provider is reported independently instead of discarding findings from other providers.
 
 ## Safety boundary
 
