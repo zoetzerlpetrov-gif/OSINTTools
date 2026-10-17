@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildUsernameCandidates, USERNAME_CATEGORIES, USERNAME_PROVIDERS } from "../src/providers/username-catalog.mjs";
 
 test("ships a broad categorized username provider catalog", () => {
-  assert.equal(USERNAME_PROVIDERS.length, 89);
+  assert.equal(USERNAME_PROVIDERS.length, 91);
   assert.ok(USERNAME_CATEGORIES.length >= 15);
   assert.equal(new Set(USERNAME_PROVIDERS.map(provider => provider.name)).size, USERNAME_PROVIDERS.length);
 });
@@ -21,4 +21,11 @@ test("builds valid candidate URLs without claiming account existence", () => {
 test("encodes a username before inserting it into provider URLs", () => {
   const [candidate] = buildUsernameCandidates("á_user");
   assert.match(candidate.url, /%C3%A1_user/);
+});
+
+test("builds a Bluesky handle without corrupting custom domains", () => {
+  const simple = buildUsernameCandidates("analista").find(item => item.provider === "Bluesky");
+  const custom = buildUsernameCandidates("analista.example").find(item => item.provider === "Bluesky");
+  assert.equal(simple.url, "https://bsky.app/profile/analista.bsky.social");
+  assert.equal(custom.url, "https://bsky.app/profile/analista.example");
 });

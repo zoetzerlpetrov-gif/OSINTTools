@@ -155,7 +155,7 @@ export async function handleRequest(request, response) {
     if (pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
 
     if (request.method === "GET" && pathname === "/api/health") {
-      return sendJson(response, 200, { status: "ok", version: "0.5.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameQuickVerification: true, usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length, quickVerificationProviders: QUICK_USERNAME_PROVIDER_NAMES.length } });
+      return sendJson(response, 200, { status: "ok", version: "0.6.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameQuickVerification: true, usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length, quickVerificationProviders: QUICK_USERNAME_PROVIDER_NAMES.length } });
     }
 
     if (request.method === "POST" && pathname === "/api/search") {

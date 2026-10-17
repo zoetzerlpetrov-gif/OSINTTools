@@ -113,7 +113,8 @@ function updateVisibleCount() {
     if (show) visible += 1;
   }
   const counts = cards.reduce((acc, card) => { acc[card.dataset.status] = (acc[card.dataset.status] || 0) + 1; return acc; }, {});
-  elements.visibleCount.textContent = `${visible} de ${cards.length} · encontrados ${counts.found || 0} · no encontrados ${counts["not-found"] || 0} · pendientes ${counts["not-checked"] || 0}`;
+  const unresolved = (counts.blocked || 0) + (counts.inconclusive || 0) + (counts.error || 0);
+  elements.visibleCount.textContent = `${visible} de ${cards.length} · encontrados ${counts.found || 0} · no encontrados ${counts["not-found"] || 0} · sin conclusión ${unresolved} · pendientes ${counts["not-checked"] || 0}`;
 }
 
 elements.categoryFilter.addEventListener("change", updateVisibleCount);

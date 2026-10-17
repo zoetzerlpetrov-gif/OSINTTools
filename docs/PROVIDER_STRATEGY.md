@@ -1,10 +1,12 @@
 # Username provider strategy
 
-## Current tier: candidate catalog
+## Current tiers: candidate catalog and verified APIs
 
 OSINTTools includes an internally maintained catalog of public profile URL patterns. A username search constructs candidate URLs locally on the server and returns them with `verification: not-checked`.
 
 This tier does not contact every listed service. It is fast, avoids burst traffic, and prevents HTTP status codes or generic profile pages from being presented as confirmed identities.
+
+Version 0.6 also checks 16 providers with maintained, provider-specific JSON response rules. A successful HTTP status alone is never treated as proof: the returned username or account identifier must match. HTML block pages, rate limits, malformed payloads, and ambiguous responses remain blocked or inconclusive.
 
 ## Implemented prototype: verified worker
 
