@@ -31,6 +31,12 @@ npm start
 
 Open <http://localhost:3000>.
 
+## Deploy on Vercel
+
+The repository is ready for a Git-connected Vercel deployment. The `public/` directory contains the static interface and `api/index.mjs` adapts the same API handler to a serverless function.
+
+Keep `ENABLE_USERNAME_VERIFICATION` disabled on Vercel. The optional Maigret integration needs a separate persistent Python worker and durable queue; the candidate-link catalog remains available without it.
+
 The application runs without API keys. Password range checks and RDAP remain available. Email-breach lookup requires `HIBP_API_KEY`; passive Shodan host intelligence requires `SHODAN_API_KEY`.
 
 RDAP contact cards and raw Shodan banners are deliberately excluded from normalized results. This reduces collection of personal data and avoids retaining unnecessary service content.
