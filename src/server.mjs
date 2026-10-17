@@ -6,6 +6,7 @@ import { inspectDomain, inspectIp } from "./connectors/dns.mjs";
 import { fetchEmailBreaches, fetchPasswordRange } from "./connectors/hibp.mjs";
 import { fetchRdap } from "./connectors/rdap.mjs";
 import { fetchShodanHost } from "./connectors/shodan.mjs";
+import { QUICK_USERNAME_PROVIDER_NAMES, verifyUsernameQuick } from "./connectors/username-quick.mjs";
 import { buildUsernameCandidates, USERNAME_CATEGORIES, USERNAME_PROVIDERS } from "./providers/username-catalog.mjs";
 import { createVerificationJob, getVerificationJob } from "./jobs/username-verification.mjs";
 import { isPublicIp, normalizeSearchType, validateSha1Prefix, validateTerm } from "./validation.mjs";
@@ -120,17 +121,12 @@ function settledFindings(results) {
     : { provider: "Connector", confidence: "unavailable", note: result.reason?.message || "Connector unavailable" });
 }
 
-function validateVerificationRequest(body) {
-  if (process.env.ENABLE_USERNAME_VERIFICATION !== "true") {
-    const error = new Error("Username verification worker is disabled");
-    error.code = "CONNECTOR_NOT_CONFIGURED";
-    throw error;
-  }
+function validateVerificationRequest(body, maximum = 50) {
   if (body.authorizationAcknowledged !== true) throw new Error("Explicit authorization acknowledgement is required");
   if (!verificationPurposes.has(body.purpose)) throw new Error("Select a supported verification purpose");
   const username = validateTerm("username", body.username);
   const maxSites = Number(body.maxSites ?? 25);
-  if (!Number.isInteger(maxSites) || maxSites < 1 || maxSites > 50) throw new Error("maxSites must be an integer from 1 to 50");
+  if (!Number.isInteger(maxSites) || maxSites < 1 || maxSites > maximum) throw new Error(`maxSites must be an integer from 1 to ${maximum}`);
   const tags = Array.isArray(body.tags) ? body.tags : [];
   if (tags.length > 5 || tags.some(tag => !/^[a-z0-9_-]{1,24}$/i.test(tag))) throw new Error("Invalid provider tags");
   return { username, purpose: body.purpose, maxSites, tags };
@@ -159,7 +155,7 @@ export async function handleRequest(request, response) {
     if (pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
 
     if (request.method === "GET" && pathname === "/api/health") {
-      return sendJson(response, 200, { status: "ok", version: "0.4.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length } });
+      return sendJson(response, 200, { status: "ok", version: "0.5.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameQuickVerification: true, usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length, quickVerificationProviders: QUICK_USERNAME_PROVIDER_NAMES.length } });
     }
 
     if (request.method === "POST" && pathname === "/api/search") {
@@ -185,7 +181,18 @@ export async function handleRequest(request, response) {
       return sendJson(response, 200, { requestId, count: breaches.length, breaches });
     }
 
+    if (request.method === "POST" && pathname === "/api/username/verify-quick") {
+      const input = validateVerificationRequest(await readJson(request), QUICK_USERNAME_PROVIDER_NAMES.length);
+      const findings = await verifyUsernameQuick(input.username, { maxSites: input.maxSites });
+      return sendJson(response, 200, { requestId, mode: "quick", username: input.username, purpose: input.purpose, observedAt: new Date().toISOString(), findings });
+    }
+
     if (request.method === "POST" && pathname === "/api/username/verify") {
+      if (process.env.ENABLE_USERNAME_VERIFICATION !== "true") {
+        const error = new Error("Maigret username verification worker is disabled");
+        error.code = "CONNECTOR_NOT_CONFIGURED";
+        throw error;
+      }
       const input = validateVerificationRequest(await readJson(request));
       return sendJson(response, 202, createVerificationJob(input));
     }
