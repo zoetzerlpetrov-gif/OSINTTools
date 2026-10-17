@@ -9,6 +9,7 @@ OSINTTools is a web workspace for authorized investigations and personal digital
 - RDAP registration lookups for domains and public IP addresses.
 - Optional Shodan host intelligence using existing observations only; no active scanning.
 - Categorized username catalog with 89 public profile patterns, clearly marked as unverified candidates.
+- Immediate provider-specific existence checks for 10 compatible public sources, with found, not-found, blocked, inconclusive, and error states.
 - Optional queued Maigret verification for up to 50 providers per authorized local job.
 - Password exposure checks through Have I Been Pwned's range API.
 - Browser-side SHA-1 hashing: the password and complete hash never reach this server.
@@ -57,6 +58,7 @@ npm run check
 | `/api/password-range` | POST | Proxy a five-character SHA-1 prefix to HIBP |
 | `/api/email-exposure` | POST | Query HIBP for an email when configured |
 | `/api/username/verify` | POST | Queue an authorized Maigret verification job when enabled |
+| `/api/username/verify-quick` | POST | Check up to 10 compatible username providers immediately |
 | `/api/jobs/:id` | GET | Read the status and normalized result of a verification job |
 
 Domain searches combine DNS with RDAP. Public-IP searches combine reverse DNS and RDAP, and add Shodan when its key is configured. A failed provider is reported independently instead of discarding findings from other providers.
