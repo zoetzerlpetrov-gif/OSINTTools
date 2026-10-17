@@ -39,7 +39,8 @@ function renderFinding(finding) {
   const confidence = escapeHtml(finding.confidence || "observado");
   const note = finding.note ? `<p>${escapeHtml(finding.note)}</p>` : "";
   const link = finding.url ? `<p><a href="${escapeHtml(finding.url)}" target="_blank" rel="noopener noreferrer">Abrir fuente candidata</a></p>` : "";
-  const details = finding.records || finding.hostnames || finding.value ? `<pre>${escapeHtml(JSON.stringify(finding.records || finding.hostnames || finding.value, null, 2))}</pre>` : "";
+  const detailValue = finding.details || finding.records || finding.hostnames || finding.value;
+  const details = detailValue ? `<pre>${escapeHtml(JSON.stringify(detailValue, null, 2))}</pre>` : "";
   return `<article class="finding"><div class="finding-head"><strong>${provider}</strong><span class="confidence">${confidence}</span></div>${note}${link}${details}</article>`;
 }
 
@@ -156,7 +157,7 @@ async function initialize() {
   updateCaseStats();
   try {
     const health = await fetch("/api/health").then(response => response.json());
-    elements.systemStatus.textContent = `DNS y contraseñas activos · correo ${health.connectors.emailExposure ? "activo" : "sin configurar"}`;
+    elements.systemStatus.textContent = `DNS, RDAP y contraseñas activos · Shodan ${health.connectors.shodan ? "activo" : "sin configurar"}`;
     elements.systemStatus.parentElement.classList.add("ready");
   } catch {
     elements.systemStatus.textContent = "Servidor no disponible";
