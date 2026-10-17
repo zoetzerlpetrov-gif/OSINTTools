@@ -9,6 +9,7 @@ OSINTTools is a web workspace for authorized investigations and personal digital
 - RDAP registration lookups for domains and public IP addresses.
 - Optional Shodan host intelligence using existing observations only; no active scanning.
 - Categorized username catalog with 89 public profile patterns, clearly marked as unverified candidates.
+- Optional queued Maigret verification for up to 50 providers per authorized local job.
 - Password exposure checks through Have I Been Pwned's range API.
 - Browser-side SHA-1 hashing: the password and complete hash never reach this server.
 - Optional HIBP email-breach lookup when `HIBP_API_KEY` is configured.
@@ -49,12 +50,28 @@ npm run check
 | `/api/search` | POST | Validate and investigate an email, username, domain, or IP |
 | `/api/password-range` | POST | Proxy a five-character SHA-1 prefix to HIBP |
 | `/api/email-exposure` | POST | Query HIBP for an email when configured |
+| `/api/username/verify` | POST | Queue an authorized Maigret verification job when enabled |
+| `/api/jobs/:id` | GET | Read the status and normalized result of a verification job |
 
 Domain searches combine DNS with RDAP. Public-IP searches combine reverse DNS and RDAP, and add Shodan when its key is configured. A failed provider is reported independently instead of discarding findings from other providers.
 
 Username searches generate candidate profile URLs across social, development, security, media, creative, professional, gaming, commerce, legacy, and regional services. They do not send 89 automated requests and do not claim that an account exists. The interface can filter the candidates by category.
 
 See [Provider strategy](docs/PROVIDER_STRATEGY.md) for the planned verified-search worker and third-party dataset boundaries.
+
+## Optional Maigret worker
+
+The worker is disabled by default. To enable it locally in PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r worker\requirements.txt
+$env:MAIGRET_PYTHON="$PWD\.venv\Scripts\python.exe"
+$env:ENABLE_USERNAME_VERIFICATION="true"
+npm start
+```
+
+The verification form requires a stated purpose, explicit authorization acknowledgement, and a limit of 1 to 50 sites. Jobs run one at a time, expire from memory after 30 minutes, disable recursive identifier discovery, and cap Maigret at five concurrent connections.
 
 ## Safety boundary
 
