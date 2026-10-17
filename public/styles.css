@@ -57,6 +57,11 @@ button.danger { color: #ff9aa4; }
 .results-panel, .password-panel { margin-top: 18px; }
 .result-tools { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: -8px 0 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .result-tools label { min-width: 230px; }
+.confidence.status-found { border-color: #2f8f73; color: #6bf0c7; background: rgba(47,143,115,.14); }
+.confidence.status-not-found { border-color: #49556b; color: #a8b2c5; background: rgba(73,85,107,.14); }
+.confidence.status-blocked, .confidence.status-inconclusive { border-color: #8d6d35; color: #f3cc7a; background: rgba(141,109,53,.14); }
+.confidence.status-error { border-color: #853f4c; color: #ff9ca7; background: rgba(133,63,76,.14); }
+.confidence.status-not-checked { border-color: #40516f; color: #9eb2d9; background: rgba(64,81,111,.14); }
 .verification-panel { display: grid; grid-template-columns: 1.6fr 1fr .7fr; gap: 14px; align-items: end; margin: 0 0 18px; padding: 18px; border: 1px solid #2e405b; border-radius: 13px; background: rgba(95,140,255,.07); }
 .verification-panel[hidden] { display: none; }
 .verification-panel p { margin: 7px 0 0; }
