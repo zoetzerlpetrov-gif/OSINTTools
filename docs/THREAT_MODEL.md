@@ -27,6 +27,7 @@
 
 - Person and phone automation are disabled.
 - Username results are labelled as candidate URLs, not confirmed accounts.
+- Category filters and candidate generation do not trigger bulk requests to listed social platforms.
 - No credential testing, port scanning, or authentication bypass.
 - Password hashing occurs in the browser; only a five-character hash prefix leaves it.
 - The server does not persist cases or search values.
