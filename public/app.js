@@ -1,7 +1,8 @@
 const state = {
   currentResult: null,
   findings: JSON.parse(localStorage.getItem("osinttools.case") || "[]"),
-  usernameVerificationEnabled: false
+  usernameQuickVerificationEnabled: false,
+  quickVerificationProviders: 0
 };
 
 const elements = {
@@ -12,6 +13,7 @@ const elements = {
   resultMeta: document.querySelector("#result-meta"),
   resultTools: document.querySelector("#result-tools"),
   categoryFilter: document.querySelector("#category-filter"),
+  statusFilter: document.querySelector("#status-filter"),
   visibleCount: document.querySelector("#visible-count"),
   verificationForm: document.querySelector("#verification-form"),
   verificationPurpose: document.querySelector("#verification-purpose"),
@@ -46,13 +48,15 @@ function escapeHtml(value) {
 
 function renderFinding(finding) {
   const provider = escapeHtml(finding.provider || "Fuente");
-  const confidence = escapeHtml(finding.confidence || "observado");
+  const status = finding.verification || "observed";
+  const statusLabels = { "not-checked": "PENDIENTE", found: "ENCONTRADO", "not-found": "NO ENCONTRADO", blocked: "BLOQUEADO", inconclusive: "INCONCLUSO", error: "ERROR", claimed: "REPORTADO" };
+  const confidence = escapeHtml(statusLabels[status] || finding.confidence || "OBSERVADO");
   const note = finding.note ? `<p>${escapeHtml(finding.note)}</p>` : "";
   const link = finding.url ? `<p><a href="${escapeHtml(finding.url)}" target="_blank" rel="noopener noreferrer">Abrir perfil o fuente candidata</a></p>` : "";
   const detailValue = finding.details || finding.records || finding.hostnames || finding.value;
   const details = detailValue ? `<pre>${escapeHtml(JSON.stringify(detailValue, null, 2))}</pre>` : "";
   const category = escapeHtml(finding.category || "other");
-  return `<article class="finding" data-category="${category}"><div class="finding-head"><strong>${provider}</strong><span class="confidence">${confidence}</span></div>${note}${link}${details}</article>`;
+  return `<article class="finding" data-category="${category}" data-status="${escapeHtml(status)}"><div class="finding-head"><strong>${provider}</strong><span class="confidence status-${escapeHtml(status)}">${confidence}</span></div>${note}${link}${details}</article>`;
 }
 
 function renderResult(result) {
@@ -72,17 +76,20 @@ function configureResultTools(result) {
     .map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
     .join("");
   elements.categoryFilter.value = "all";
-  elements.visibleCount.textContent = result.catalog ? `${result.catalog.total} proveedores candidatos · sin verificar` : "";
+  elements.statusFilter.value = "all";
+  updateVisibleCount();
 }
 
 function configureVerification(result) {
   const isUsername = result.type === "username";
   elements.verificationForm.hidden = !isUsername;
   if (!isUsername) return;
-  elements.verificationSubmit.disabled = !state.usernameVerificationEnabled;
-  elements.verificationStatus.textContent = state.usernameVerificationEnabled
-    ? "Trabajador disponible. La consulta se ejecutará en una cola local."
-    : "Trabajador desactivado. Configura Maigret y ENABLE_USERNAME_VERIFICATION=true.";
+  elements.verificationSubmit.disabled = !state.usernameQuickVerificationEnabled;
+  elements.verificationLimit.max = String(state.quickVerificationProviders || 10);
+  elements.verificationLimit.value = String(state.quickVerificationProviders || 10);
+  elements.verificationStatus.textContent = state.usernameQuickVerificationEnabled
+    ? `${state.quickVerificationProviders} fuentes compatibles con verificación inmediata. Las demás permanecerán pendientes.`
+    : "La verificación rápida no está disponible.";
 }
 
 function renderError(message) {
@@ -92,65 +99,50 @@ function renderError(message) {
   elements.resultMeta.textContent = "Consulta fallida";
 }
 
-elements.categoryFilter.addEventListener("change", () => {
+function updateVisibleCount() {
+  if (!state.currentResult?.catalog) return;
   const selected = elements.categoryFilter.value;
+  const selectedStatus = elements.statusFilter.value;
   const cards = [...elements.results.querySelectorAll(".finding")];
   let visible = 0;
   for (const card of cards) {
-    const show = selected === "all" || card.dataset.category === selected;
+    const categoryMatches = selected === "all" || card.dataset.category === selected;
+    const statusMatches = selectedStatus === "all" || card.dataset.status === selectedStatus;
+    const show = categoryMatches && statusMatches;
     card.hidden = !show;
     if (show) visible += 1;
   }
-  elements.visibleCount.textContent = `${visible} de ${cards.length} proveedores candidatos · sin verificar`;
-});
+  const counts = cards.reduce((acc, card) => { acc[card.dataset.status] = (acc[card.dataset.status] || 0) + 1; return acc; }, {});
+  elements.visibleCount.textContent = `${visible} de ${cards.length} · encontrados ${counts.found || 0} · no encontrados ${counts["not-found"] || 0} · pendientes ${counts["not-checked"] || 0}`;
+}
+
+elements.categoryFilter.addEventListener("change", updateVisibleCount);
+elements.statusFilter.addEventListener("change", updateVisibleCount);
 
 elements.verificationForm.addEventListener("submit", async event => {
   event.preventDefault();
   if (!state.currentResult || state.currentResult.type !== "username") return;
   elements.verificationSubmit.disabled = true;
-  elements.verificationStatus.textContent = "Trabajo en cola…";
+  elements.verificationStatus.textContent = "Consultando fuentes compatibles…";
   try {
-    const job = await postJson("/api/username/verify", {
+    const result = await postJson("/api/username/verify-quick", {
       username: state.currentResult.value,
       purpose: elements.verificationPurpose.value,
       maxSites: Number(elements.verificationLimit.value),
       authorizationAcknowledged: elements.verificationAuthorization.checked,
       tags: []
     });
-    await pollVerificationJob(job.id);
+    const replacements = new Map(result.findings.map(finding => [finding.provider, finding]));
+    const findings = state.currentResult.findings.map(finding => replacements.get(finding.provider) || finding);
+    renderResult({ ...state.currentResult, observedAt: result.observedAt, findings, quickVerification: { purpose: result.purpose, checked: result.findings.length } });
+    const counts = result.findings.reduce((acc, finding) => { acc[finding.verification] = (acc[finding.verification] || 0) + 1; return acc; }, {});
+    elements.verificationStatus.textContent = `${counts.found || 0} encontrados · ${counts["not-found"] || 0} no encontrados · ${(counts.blocked || 0) + (counts.inconclusive || 0) + (counts.error || 0)} sin conclusión.`;
   } catch (error) {
     elements.verificationStatus.textContent = error.message;
   } finally {
-    elements.verificationSubmit.disabled = !state.usernameVerificationEnabled;
+    elements.verificationSubmit.disabled = !state.usernameQuickVerificationEnabled;
   }
 });
-
-async function pollVerificationJob(jobId) {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    const job = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`).then(async response => {
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
-      return payload;
-    });
-    elements.verificationStatus.textContent = job.status === "queued" ? "En cola…" : job.status === "running" ? "Maigret está verificando perfiles…" : job.status;
-    if (job.status === "failed") throw new Error(job.error || "El trabajo de verificación falló");
-    if (job.status === "completed") {
-      const verified = job.results || [];
-      const candidates = state.currentResult.findings.filter(finding => finding.verification !== "claimed");
-      const categories = [...new Set([...(state.currentResult.catalog?.categories || []), "verified-username"])].sort();
-      renderResult({
-        ...state.currentResult,
-        findings: [...verified, ...candidates],
-        catalog: { ...(state.currentResult.catalog || {}), total: verified.length + candidates.length, categories, mode: "mixed" },
-        verificationJob: { id: job.id, purpose: job.purpose, completedAt: job.updatedAt }
-      });
-      elements.verificationStatus.textContent = `${verified.length} perfiles reportados como existentes por Maigret. Requieren revisión humana.`;
-      return;
-    }
-    await new Promise(resolve => setTimeout(resolve, 1500));
-  }
-  throw new Error("La verificación continúa ejecutándose; consulta el trabajo más tarde");
-}
 
 function updateCaseStats() {
   elements.findingCount.textContent = String(state.findings.length);
@@ -251,7 +243,8 @@ async function initialize() {
   updateCaseStats();
   try {
     const health = await fetch("/api/health").then(response => response.json());
-    state.usernameVerificationEnabled = Boolean(health.connectors.usernameVerification);
+    state.usernameQuickVerificationEnabled = Boolean(health.connectors.usernameQuickVerification);
+    state.quickVerificationProviders = Number(health.usernameCatalog.quickVerificationProviders || 0);
     elements.systemStatus.textContent = `DNS, RDAP y contraseñas activos · Shodan ${health.connectors.shodan ? "activo" : "sin configurar"}`;
     elements.systemStatus.parentElement.classList.add("ready");
   } catch {
