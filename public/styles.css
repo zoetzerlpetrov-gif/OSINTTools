@@ -62,13 +62,15 @@ button.danger { color: #ff9aa4; }
 .confidence.status-blocked, .confidence.status-inconclusive { border-color: #8d6d35; color: #f3cc7a; background: rgba(141,109,53,.14); }
 .confidence.status-error { border-color: #853f4c; color: #ff9ca7; background: rgba(133,63,76,.14); }
 .confidence.status-not-checked { border-color: #40516f; color: #9eb2d9; background: rgba(64,81,111,.14); }
+.confidence.status-claimed { border-color: #7456b7; color: #c9b5ff; background: rgba(116,86,183,.14); }
 .verification-panel { display: grid; grid-template-columns: 1.6fr 1fr .7fr; gap: 14px; align-items: end; margin: 0 0 18px; padding: 18px; border: 1px solid #2e405b; border-radius: 13px; background: rgba(95,140,255,.07); }
 .verification-panel[hidden] { display: none; }
 .verification-panel p { margin: 7px 0 0; }
 .verification-panel button { min-height: 45px; }
 .authorization-check { grid-column: 1 / span 2; display: flex; align-items: center; gap: 9px; }
 .authorization-check input { width: 17px; min-height: 17px; margin: 0; }
-.verification-panel #verification-status { align-self: center; }
+.verification-status, .verification-panel #verification-status { align-self: center; }
+.broad-panel { border-color: #513d79; background: rgba(116,86,183,.08); }
 .empty-state { min-height: 230px; display: grid; place-items: center; align-content: center; gap: 16px; color: var(--muted); }
 .radar { width: 76px; height: 76px; border-radius: 50%; border: 1px solid #2f4e50; background: conic-gradient(from 0deg, transparent, rgba(69,224,189,.35)); position: relative; }
 .radar::after { content: ""; position: absolute; inset: 12px; border: 1px solid #294044; border-radius: 50%; }

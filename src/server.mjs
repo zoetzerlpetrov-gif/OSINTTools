@@ -7,6 +7,7 @@ import { fetchEmailBreaches, fetchPasswordRange } from "./connectors/hibp.mjs";
 import { fetchRdap } from "./connectors/rdap.mjs";
 import { fetchShodanHost } from "./connectors/shodan.mjs";
 import { QUICK_USERNAME_PROVIDER_NAMES, verifyUsernameQuick } from "./connectors/username-quick.mjs";
+import { createRemoteMaigretJob, getRemoteMaigretJob, isRemoteMaigretConfigured } from "./connectors/maigret-remote.mjs";
 import { buildUsernameCandidates, USERNAME_CATEGORIES, USERNAME_PROVIDERS } from "./providers/username-catalog.mjs";
 import { createVerificationJob, getVerificationJob } from "./jobs/username-verification.mjs";
 import { isPublicIp, normalizeSearchType, validateSha1Prefix, validateTerm } from "./validation.mjs";
@@ -155,7 +156,7 @@ export async function handleRequest(request, response) {
     if (pathname.startsWith("/api/") && !allowRequest(request)) return sendJson(response, 429, { error: "Rate limit exceeded", requestId });
 
     if (request.method === "GET" && pathname === "/api/health") {
-      return sendJson(response, 200, { status: "ok", version: "0.6.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameQuickVerification: true, usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length, quickVerificationProviders: QUICK_USERNAME_PROVIDER_NAMES.length } });
+      return sendJson(response, 200, { status: "ok", version: "0.7.0", connectors: { passwordExposure: true, emailExposure: Boolean(process.env.HIBP_API_KEY), dns: true, rdap: true, shodan: Boolean(process.env.SHODAN_API_KEY), usernameQuickVerification: true, usernameBroadVerification: isRemoteMaigretConfigured(), usernameVerification: process.env.ENABLE_USERNAME_VERIFICATION === "true" }, usernameCatalog: { providers: USERNAME_PROVIDERS.length, categories: USERNAME_CATEGORIES.length, quickVerificationProviders: QUICK_USERNAME_PROVIDER_NAMES.length, broadVerificationMaxProviders: 500 } });
     }
 
     if (request.method === "POST" && pathname === "/api/search") {
@@ -187,6 +188,18 @@ export async function handleRequest(request, response) {
       return sendJson(response, 200, { requestId, mode: "quick", username: input.username, purpose: input.purpose, observedAt: new Date().toISOString(), findings });
     }
 
+    if (request.method === "POST" && pathname === "/api/username/verify-broad") {
+      const input = validateVerificationRequest(await readJson(request), 500);
+      const job = await createRemoteMaigretJob({ ...input, authorizationAcknowledged: true });
+      return sendJson(response, 202, { requestId, ...job });
+    }
+
+    if (request.method === "GET" && pathname.startsWith("/api/username/broad-jobs/")) {
+      const id = pathname.slice("/api/username/broad-jobs/".length);
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return sendJson(response, 404, { error: "Job not found", requestId });
+      return sendJson(response, 200, await getRemoteMaigretJob(id));
+    }
+
     if (request.method === "POST" && pathname === "/api/username/verify") {
       if (process.env.ENABLE_USERNAME_VERIFICATION !== "true") {
         const error = new Error("Maigret username verification worker is disabled");
@@ -207,7 +220,7 @@ export async function handleRequest(request, response) {
     if (request.method === "GET") return serveStatic(pathname, response);
     return sendJson(response, 405, { error: "Method not allowed", requestId });
   } catch (error) {
-    const status = error.code === "CONNECTOR_NOT_CONFIGURED" ? 503 : 400;
+    const status = error.code === "CONNECTOR_NOT_CONFIGURED" ? 503 : error.code === "REMOTE_CONNECTOR_ERROR" ? 502 : 400;
     sendJson(response, status, { error: error.message || "Unexpected error", requestId });
   }
 }

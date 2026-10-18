@@ -28,9 +28,10 @@
 - Person and phone automation are disabled.
 - Username results are labelled as candidate URLs, not confirmed accounts.
 - Category filters and candidate generation do not trigger bulk requests to listed social platforms.
-- The Maigret worker is disabled by default and requires an explicit authorization acknowledgement and supported purpose.
-- Verification is capped at 50 providers, five concurrent connections, one queued job at a time, and 120 seconds.
+- The Maigret worker is disabled until its HTTPS URL and shared secret are configured; each request requires an HMAC signature with replay protection.
+- Verification requires an explicit authorization acknowledgement and supported purpose, and is capped at 500 sources with bounded queue depth, concurrency, and runtime.
 - Recursive discovery is disabled and raw response bodies are excluded from normalized output.
+- Worker jobs are ephemeral and expire from memory; results are labelled as heuristic reports rather than identity confirmation.
 - No credential testing, port scanning, or authentication bypass.
 - Password hashing occurs in the browser; only a five-character hash prefix leaves it.
 - The server does not persist cases or search values.

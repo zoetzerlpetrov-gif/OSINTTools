@@ -8,9 +8,11 @@ This tier does not contact every listed service. It is fast, avoids burst traffi
 
 Version 0.6 also checks 16 providers with maintained, provider-specific JSON response rules. A successful HTTP status alone is never treated as proof: the returned username or account identifier must match. HTML block pages, rate limits, malformed payloads, and ambiguous responses remain blocked or inconclusive.
 
-## Implemented prototype: verified worker
+## Implemented: remote broad worker
 
-Version 0.4 adds an optional local Maigret worker outside the web request cycle. It is disabled by default, accepts no more than 50 sites, uses five concurrent connections, disables recursive discovery, and runs through a single in-memory queue.
+Version 0.7 adds an optional containerized Maigret worker outside the serverless web request cycle. It is disabled until configured, accepts no more than 500 sources, uses bounded concurrency, disables recursive discovery, and runs through an ephemeral in-memory queue. HMAC-signed requests protect the private worker API.
+
+Maigret's simple report contains pattern matches rather than provider-issued identity assertions. OSINTTools therefore labels them `claimed` / `REPORTADO POR MAIGRET`, while maintained API checks use the separate `found` / `ENCONTRADO` state.
 
 Before enabling it in a multi-user deployment, the following controls remain required:
 

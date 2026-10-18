@@ -4,3 +4,5 @@ node_modules/
 coverage/
 *.log
 tmp/
+__pycache__/
+*.pyc
