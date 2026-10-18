@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: osinttools-maigret-worker
+    runtime: docker
+    dockerfilePath: ./worker/Dockerfile
+    dockerContext: ./worker
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: OSINTTOOLS_WORKER_SECRET
+        sync: false
+      - key: MAIGRET_MAX_SITES
+        value: "500"
+      - key: MAIGRET_MAX_QUEUE
+        value: "10"
+      - key: MAIGRET_WORKERS
+        value: "1"
+      - key: MAIGRET_JOB_TIMEOUT_SECONDS
+        value: "600"

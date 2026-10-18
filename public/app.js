@@ -2,7 +2,9 @@ const state = {
   currentResult: null,
   findings: JSON.parse(localStorage.getItem("osinttools.case") || "[]"),
   usernameQuickVerificationEnabled: false,
-  quickVerificationProviders: 0
+  quickVerificationProviders: 0,
+  usernameBroadVerificationEnabled: false,
+  broadVerificationMaxProviders: 500
 };
 
 const elements = {
@@ -21,6 +23,12 @@ const elements = {
   verificationAuthorization: document.querySelector("#verification-authorization"),
   verificationSubmit: document.querySelector("#verification-submit"),
   verificationStatus: document.querySelector("#verification-status"),
+  broadVerificationForm: document.querySelector("#broad-verification-form"),
+  broadVerificationPurpose: document.querySelector("#broad-verification-purpose"),
+  broadVerificationLimit: document.querySelector("#broad-verification-limit"),
+  broadVerificationAuthorization: document.querySelector("#broad-verification-authorization"),
+  broadVerificationSubmit: document.querySelector("#broad-verification-submit"),
+  broadVerificationStatus: document.querySelector("#broad-verification-status"),
   saveResult: document.querySelector("#save-result"),
   exportCase: document.querySelector("#export-case"),
   clearCase: document.querySelector("#clear-case"),
@@ -49,7 +57,7 @@ function escapeHtml(value) {
 function renderFinding(finding) {
   const provider = escapeHtml(finding.provider || "Fuente");
   const status = finding.verification || "observed";
-  const statusLabels = { "not-checked": "PENDIENTE", found: "ENCONTRADO", "not-found": "NO ENCONTRADO", blocked: "BLOQUEADO", inconclusive: "INCONCLUSO", error: "ERROR", claimed: "REPORTADO" };
+  const statusLabels = { "not-checked": "PENDIENTE", found: "ENCONTRADO", "not-found": "NO ENCONTRADO", blocked: "BLOQUEADO", inconclusive: "INCONCLUSO", error: "ERROR", claimed: "REPORTADO POR MAIGRET" };
   const confidence = escapeHtml(statusLabels[status] || finding.confidence || "OBSERVADO");
   const note = finding.note ? `<p>${escapeHtml(finding.note)}</p>` : "";
   const link = finding.url ? `<p><a href="${escapeHtml(finding.url)}" target="_blank" rel="noopener noreferrer">Abrir perfil o fuente candidata</a></p>` : "";
@@ -83,6 +91,7 @@ function configureResultTools(result) {
 function configureVerification(result) {
   const isUsername = result.type === "username";
   elements.verificationForm.hidden = !isUsername;
+  elements.broadVerificationForm.hidden = !isUsername;
   if (!isUsername) return;
   elements.verificationSubmit.disabled = !state.usernameQuickVerificationEnabled;
   elements.verificationLimit.max = String(state.quickVerificationProviders || 10);
@@ -90,6 +99,12 @@ function configureVerification(result) {
   elements.verificationStatus.textContent = state.usernameQuickVerificationEnabled
     ? `${state.quickVerificationProviders} fuentes compatibles con verificación inmediata. Las demás permanecerán pendientes.`
     : "La verificación rápida no está disponible.";
+  elements.broadVerificationSubmit.disabled = !state.usernameBroadVerificationEnabled;
+  elements.broadVerificationLimit.max = String(state.broadVerificationMaxProviders);
+  if (Number(elements.broadVerificationLimit.value) > state.broadVerificationMaxProviders) elements.broadVerificationLimit.value = String(state.broadVerificationMaxProviders);
+  elements.broadVerificationStatus.textContent = state.usernameBroadVerificationEnabled
+    ? `Trabajador disponible · límite ${state.broadVerificationMaxProviders} fuentes por búsqueda.`
+    : "Trabajador amplio aún no configurado; la verificación rápida sigue disponible.";
 }
 
 function renderError(message) {
@@ -114,7 +129,7 @@ function updateVisibleCount() {
   }
   const counts = cards.reduce((acc, card) => { acc[card.dataset.status] = (acc[card.dataset.status] || 0) + 1; return acc; }, {});
   const unresolved = (counts.blocked || 0) + (counts.inconclusive || 0) + (counts.error || 0);
-  elements.visibleCount.textContent = `${visible} de ${cards.length} · encontrados ${counts.found || 0} · no encontrados ${counts["not-found"] || 0} · sin conclusión ${unresolved} · pendientes ${counts["not-checked"] || 0}`;
+  elements.visibleCount.textContent = `${visible} de ${cards.length} · encontrados ${counts.found || 0} · reportados ${counts.claimed || 0} · no encontrados ${counts["not-found"] || 0} · sin conclusión ${unresolved} · pendientes ${counts["not-checked"] || 0}`;
 }
 
 elements.categoryFilter.addEventListener("change", updateVisibleCount);
@@ -142,6 +157,48 @@ elements.verificationForm.addEventListener("submit", async event => {
     elements.verificationStatus.textContent = error.message;
   } finally {
     elements.verificationSubmit.disabled = !state.usernameQuickVerificationEnabled;
+  }
+});
+
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+elements.broadVerificationForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!state.currentResult || state.currentResult.type !== "username") return;
+  elements.broadVerificationSubmit.disabled = true;
+  elements.broadVerificationStatus.textContent = "Trabajo en cola…";
+  try {
+    const queued = await postJson("/api/username/verify-broad", {
+      username: state.currentResult.value,
+      purpose: elements.broadVerificationPurpose.value,
+      maxSites: Number(elements.broadVerificationLimit.value),
+      authorizationAcknowledged: elements.broadVerificationAuthorization.checked,
+      tags: []
+    });
+    let job = queued;
+    for (let attempt = 0; attempt < 220 && ["queued", "running"].includes(job.status); attempt += 1) {
+      elements.broadVerificationStatus.textContent = job.status === "running" ? "Maigret está revisando fuentes…" : "Trabajo en cola…";
+      await wait(3_000);
+      job = await fetch(`/api/username/broad-jobs/${encodeURIComponent(queued.id)}`).then(async response => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+        return payload;
+      });
+    }
+    if (job.status === "failed") throw new Error(job.error || "La búsqueda amplia falló");
+    if (job.status !== "completed") throw new Error("La búsqueda amplia excedió el tiempo de espera de la interfaz");
+
+    const claimed = new Map(job.findings.map(finding => [finding.provider, finding]));
+    const knownProviders = new Set(state.currentResult.findings.map(finding => finding.provider));
+    const findings = state.currentResult.findings.map(finding => finding.verification !== "not-checked" ? finding : (claimed.get(finding.provider) || finding));
+    findings.push(...job.findings.filter(finding => !knownProviders.has(finding.provider)));
+    const categories = [...new Set([...(state.currentResult.catalog?.categories || []), "broad"])];
+    renderResult({ ...state.currentResult, observedAt: job.completedAt || new Date().toISOString(), findings, catalog: { ...(state.currentResult.catalog || {}), total: findings.length, categories }, broadVerification: { purpose: job.purpose, checked: job.checkedSites, reported: job.findings.length } });
+    elements.broadVerificationStatus.textContent = `${job.findings.length} perfiles reportados entre ${job.checkedSites} fuentes solicitadas; confirma cada coincidencia manualmente.`;
+  } catch (error) {
+    elements.broadVerificationStatus.textContent = error.message;
+  } finally {
+    elements.broadVerificationSubmit.disabled = !state.usernameBroadVerificationEnabled;
   }
 });
 
@@ -246,7 +303,9 @@ async function initialize() {
     const health = await fetch("/api/health").then(response => response.json());
     state.usernameQuickVerificationEnabled = Boolean(health.connectors.usernameQuickVerification);
     state.quickVerificationProviders = Number(health.usernameCatalog.quickVerificationProviders || 0);
-    elements.systemStatus.textContent = `DNS, RDAP y contraseñas activos · Shodan ${health.connectors.shodan ? "activo" : "sin configurar"}`;
+    state.usernameBroadVerificationEnabled = Boolean(health.connectors.usernameBroadVerification);
+    state.broadVerificationMaxProviders = Number(health.usernameCatalog.broadVerificationMaxProviders || 500);
+    elements.systemStatus.textContent = `DNS, RDAP y contraseñas activos · Maigret ${state.usernameBroadVerificationEnabled ? "activo" : "sin configurar"}`;
     elements.systemStatus.parentElement.classList.add("ready");
   } catch {
     elements.systemStatus.textContent = "Servidor no disponible";

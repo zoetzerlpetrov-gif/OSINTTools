@@ -30,7 +30,7 @@
       <div class="panel search-panel">
         <div class="panel-heading">
           <div><span class="step">01</span><h2>Nueva consulta</h2></div>
-          <span class="badge">MVP 0.6</span>
+          <span class="badge">MVP 0.7</span>
         </div>
         <form id="search-form" class="search-form">
           <label>
@@ -77,6 +77,7 @@
           <option value="blocked">Bloqueado</option>
           <option value="inconclusive">Inconcluso</option>
           <option value="error">Error</option>
+          <option value="claimed">Reportado por Maigret</option>
           <option value="not-checked">Pendiente</option>
         </select></label>
         <span id="visible-count" class="muted"></span>
@@ -97,6 +98,23 @@
         <label class="authorization-check"><input id="verification-authorization" type="checkbox" required> Confirmo que tengo autorización y un propósito legítimo.</label>
         <button id="verification-submit" type="submit">Verificar existencia</button>
         <span id="verification-status" class="microcopy">Comprobando disponibilidad del trabajador…</span>
+      </form>
+      <form id="broad-verification-form" class="verification-panel broad-panel" hidden>
+        <div>
+          <strong>Búsqueda amplia con Maigret</strong>
+          <p class="microcopy">Revisa hasta 500 fuentes en un trabajador aislado. “Reportado” es una señal heurística: abre el perfil y confirma manualmente; no demuestra quién lo controla.</p>
+        </div>
+        <label>Propósito
+          <select id="broad-verification-purpose" required>
+            <option value="self-audit">Autoauditoría</option>
+            <option value="owned-brand">Marca o activo propio</option>
+            <option value="authorized-investigation">Investigación autorizada</option>
+          </select>
+        </label>
+        <label>Máximo de fuentes<input id="broad-verification-limit" type="number" min="25" max="500" step="25" value="100" required></label>
+        <label class="authorization-check"><input id="broad-verification-authorization" type="checkbox" required> Confirmo que tengo autorización y un propósito legítimo.</label>
+        <button id="broad-verification-submit" type="submit">Iniciar búsqueda amplia</button>
+        <span id="broad-verification-status" class="microcopy verification-status">Comprobando disponibilidad del trabajador…</span>
       </form>
       <div id="results" class="empty-state">
         <div class="radar"></div>
